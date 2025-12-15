@@ -1,0 +1,16 @@
+[Unit]
+Description=Watt Monitor - Battery data collector daemon
+Documentation=https://github.com/user/watt-monitor
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/watt-monitor daemon
+Restart=on-failure
+RestartSec=5
+
+# Resource limits
+MemoryMax=50M
+CPUQuota=5%
+
+[Install]
+WantedBy=default.target

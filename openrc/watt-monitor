@@ -1,0 +1,31 @@
+#!/sbin/openrc-run
+# Watt Monitor - Battery data collector daemon
+
+name="watt-monitor"
+description="Watt Monitor - Battery data collector daemon"
+
+command="/usr/bin/watt-monitor"
+command_args="daemon"
+command_background=true
+
+# Run as the user who owns the session
+command_user="${WATT_MONITOR_USER:-root}"
+
+# PID file location
+pidfile="/run/watt-monitor.pid"
+
+depend() {
+    need localmount
+    after bootmisc
+}
+
+start_pre() {
+    # Ensure the runtime directory exists
+    checkpath --directory --owner ${command_user} /run
+}
+
+stop() {
+    ebegin "Stopping ${name}"
+    start-stop-daemon --stop --pidfile "${pidfile}" --signal TERM
+    eend $?
+}
