@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="watt-monitor-main.png" alt="Watt Monitor Screenshot" width="100%" />
+  <img src="https://raw.githubusercontent.com/jookwang-park/watt-monitor-rs/refs/heads/main/assets/preview.png" alt="Watt Monitor Screenshot" width="100%" />
 
   <h1>Watt Monitor</h1>
 
