@@ -46,7 +46,10 @@ pub fn parse_csv<P: AsRef<Path>>(path: P) -> Result<Vec<BatteryRecord>, Box<dyn 
     let mut records = Vec::new();
 
     for result in reader.deserialize() {
-        let csv_record: CsvRecord = result?;
+        let csv_record: CsvRecord = match result {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
         if let Ok(record) = BatteryRecord::try_from(csv_record) {
             records.push(record);
         }
@@ -67,7 +70,12 @@ pub fn parse_csv_from_line<P: AsRef<Path>>(
         if i < skip_lines {
             continue;
         }
-        let csv_record: CsvRecord = result?;
+
+        let csv_record: CsvRecord = match result {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
         if let Ok(record) = BatteryRecord::try_from(csv_record) {
             records.push(record);
         }

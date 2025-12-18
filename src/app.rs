@@ -91,7 +91,7 @@ pub struct App {
     pub records: Vec<BatteryRecord>,
     pub current_date: NaiveDate,
     pub available_dates: Vec<NaiveDate>,
-    pub last_read_count: usize,
+    pub today_record_count: usize,
     pub should_quit: bool,
     pub view_mode: ViewMode,
     pub show_service_warning: bool,
@@ -100,15 +100,14 @@ pub struct App {
 
 impl App {
     pub fn new(initial_date: NaiveDate, available_dates: Vec<NaiveDate>) -> Self {
-        let records = Self::load_records_for_date(initial_date);
-        let last_read_count = records.len();
+        let (records, today_record_count) = Self::load_records_for_date(initial_date);
         let show_service_warning = !Self::is_logger_service_active();
 
         App {
             records,
             current_date: initial_date,
             available_dates,
-            last_read_count,
+            today_record_count,
             should_quit: false,
             view_mode: ViewMode::Recent30m,
             show_service_warning,
@@ -136,9 +135,10 @@ impl App {
         self.show_about = false;
     }
 
-    fn load_records_for_date(date: NaiveDate) -> Vec<BatteryRecord> {
+    fn load_records_for_date(date: NaiveDate) -> (Vec<BatteryRecord>, usize) {
         let today = Local::now().date_naive();
         let mut records = Vec::new();
+        let mut today_count = 0;
 
         if date == today {
             if let Some(yesterday) = date.pred_opt() {
@@ -149,8 +149,17 @@ impl App {
                     }
                 }
             }
+
+            let today_archive_path = get_archive_path_for_date(date);
+            if today_archive_path.exists() {
+                if let Ok(today_archive_records) = parse_csv(&today_archive_path) {
+                    records.extend(today_archive_records);
+                }
+            }
+
             let today_path = get_csv_path_for_date(date);
             if let Ok(today_records) = parse_csv(&today_path) {
+                today_count = today_records.len();
                 records.extend(today_records);
             }
         } else {
@@ -158,7 +167,7 @@ impl App {
             records = parse_csv(&csv_path).unwrap_or_default();
         }
 
-        records
+        (records, today_count)
     }
 
     pub fn toggle_view_mode(&mut self) {
@@ -189,12 +198,12 @@ impl App {
     }
 
     fn load_date_data(&mut self) {
-        self.records = Self::load_records_for_date(self.current_date);
-        self.last_read_count = self.records.len();
+        let (records, today_count) = Self::load_records_for_date(self.current_date);
+        self.records = records;
+        self.today_record_count = today_count;
     }
 
     pub fn refresh_data(&mut self) {
-        // Only refresh if viewing today's data
         if !self.is_today() {
             return;
         }
@@ -202,10 +211,11 @@ impl App {
         self.available_dates = list_available_dates();
 
         let csv_path = get_csv_path_for_date(self.current_date);
-        if let Ok(new_records) = parse_csv_from_line(&csv_path, self.last_read_count) {
-            if !new_records.is_empty() {
+        if let Ok(new_records) = parse_csv_from_line(&csv_path, self.today_record_count) {
+            let count = new_records.len();
+            if count > 0 {
                 self.records.extend(new_records);
-                self.last_read_count = self.records.len();
+                self.today_record_count += count;
             }
         }
     }
