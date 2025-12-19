@@ -59,6 +59,8 @@ fn print_available_dates() {
 }
 
 fn run_tui(date_arg: Option<String>) -> io::Result<()> {
+    let available_dates = list_available_dates();
+
     let target_date: NaiveDate = if let Some(ref date_str) = date_arg {
         parse_date_arg(date_str).unwrap_or_else(|| {
             eprintln!(
@@ -68,10 +70,13 @@ fn run_tui(date_arg: Option<String>) -> io::Result<()> {
             std::process::exit(1);
         })
     } else {
-        Local::now().date_naive()
+        let today = Local::now().date_naive();
+        if available_dates.contains(&today) {
+            today
+        } else {
+            available_dates.first().copied().unwrap_or(today)
+        }
     };
-
-    let available_dates = list_available_dates();
 
     let mut terminal = ratatui::init();
     let result = run(&mut terminal, target_date, available_dates);
