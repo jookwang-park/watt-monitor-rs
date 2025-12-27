@@ -81,6 +81,10 @@ watt-monitor
 | `l` or `→` | View next day's log |
 | `q` or `Esc` | Quit application |
 
+## Limitation
+
+You can see the power usage in watts while the battery is charging, but it reports 0W once charging is complete. This is because the system runs directly on AC power. While this can be fixed, it requires `sudo` privileges. I do not feel it is appropriate to require root access to run this application at this time. 
+
 ## 🤝 Contributing
 
 Contributions are welcome! Whether it's reporting a bug, suggesting a feature, or submitting a Pull Request, your input is valued.
