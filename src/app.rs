@@ -406,6 +406,41 @@ impl App {
             .copied()
     }
 
+    pub fn get_current_awake_stats(&self) -> Option<(i64, f64, f64)> {
+        if self.records.is_empty() {
+            return None;
+        }
+
+        let sleep_periods = self.detect_sleep_periods();
+        let last_record = self.records.last().unwrap();
+
+        let start_time = if let Some(last_sleep) = sleep_periods.last() {
+            last_sleep.end_time
+        } else {
+            self.records.first().unwrap().time.timestamp()
+        };
+
+        let start_record = self
+            .records
+            .iter()
+            .find(|r| r.time.timestamp() == start_time);
+
+        if let Some(start) = start_record {
+            let duration = last_record.time.timestamp() - start.time.timestamp();
+            let capacity_diff = last_record.capacity - start.capacity;
+            let hours = duration as f64 / 3600.0;
+            let rate = if hours > 0.0 {
+                capacity_diff / hours
+            } else {
+                0.0
+            };
+
+            return Some((duration, capacity_diff, rate));
+        }
+
+        None
+    }
+
     pub fn chart_data(&self) -> ChartData {
         let filtered = self.filtered_records();
         if filtered.is_empty() {

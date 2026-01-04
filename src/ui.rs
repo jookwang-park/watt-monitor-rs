@@ -22,7 +22,7 @@ pub fn format_duration(secs: f64) -> String {
 }
 
 pub fn draw(frame: &mut Frame, app: &App) {
-    let chunks = Layout::vertical([Constraint::Min(10), Constraint::Length(3)]).split(frame.area());
+    let chunks = Layout::vertical([Constraint::Min(10), Constraint::Length(4)]).split(frame.area());
 
     draw_chart(frame, app, chunks[0]);
     draw_status_bar(frame, app, chunks[1]);
@@ -168,8 +168,6 @@ fn draw_chart(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_status_bar(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
-    let width = area.width as usize;
-
     let status = app.latest_status().unwrap_or("N/A");
     let status_span: Span = match status {
         "Charging" => status.green().bold(),
@@ -187,102 +185,92 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .map(|p| format!("{:.2}W", p))
         .unwrap_or_else(|| "N/A".to_string());
 
-    let spans: Vec<Span> = if width >= 110 {
-        // 전체 표시
-        let mut s = vec![
-            " Status: ".into(),
-            status_span,
-            " | Capacity: ".into(),
-            capacity.cyan().bold(),
-            " | Power: ".into(),
-            power.yellow().bold(),
-            " | ".into(),
-            app.view_mode_label().green(),
-        ];
-        if let Some(sleep) = app.last_sleep_period() {
-            let duration = format_duration(sleep.duration_secs as f64);
-            let diff_str = if sleep.capacity_diff >= 0.0 {
-                format!("+{:.1}%", sleep.capacity_diff)
-            } else {
-                format!("{:.1}%", sleep.capacity_diff)
-            };
-            let hours = sleep.duration_secs as f64 / 3600.0;
-            let rate = if hours > 0.0 {
-                sleep.capacity_diff / hours
-            } else {
-                0.0
-            };
-            let rate_str = if rate >= 0.0 {
-                format!("+{:.1}%/h", rate)
-            } else {
-                format!("{:.1}%/h", rate)
-            };
-            s.extend(vec![
-                " | Last Sleep: ".into(),
-                duration.magenta(),
-                " (".into(),
-                diff_str.magenta().bold(),
-                ", ".into(),
-                rate_str.magenta(),
-                ")".into(),
-            ]);
-        }
-        s.push(" | ←→ Tab h q ".dark_gray());
-        s
-    } else if width >= 80 {
-        // Sleep 축약
-        let mut s = vec![
-            " ".into(),
-            status_span,
-            " | ".into(),
-            capacity.cyan().bold(),
-            " | ".into(),
-            power.yellow().bold(),
-            " | ".into(),
-            app.view_mode_label().green(),
-        ];
-        if let Some(sleep) = app.last_sleep_period() {
-            let duration = format_duration(sleep.duration_secs as f64);
-            let diff_str = if sleep.capacity_diff >= 0.0 {
-                format!("+{:.1}%", sleep.capacity_diff)
-            } else {
-                format!("{:.1}%", sleep.capacity_diff)
-            };
-            s.extend(vec![
-                " | Sleep: ".into(),
-                duration.magenta(),
-                " (".into(),
-                diff_str.magenta().bold(),
-                ")".into(),
-            ]);
-        }
-        s.push(" | ←→ Tab h q ".dark_gray());
-        s
-    } else if width >= 60 {
-        vec![
-            " ".into(),
-            status_span,
-            " | ".into(),
-            capacity.cyan().bold(),
-            " | ".into(),
-            power.yellow().bold(),
-            " | ".into(),
-            app.view_mode_label().green(),
-            " | ←→ h q ".dark_gray(),
-        ]
-    } else {
-        vec![
-            " ".into(),
-            status_span,
-            " | ".into(),
-            capacity.cyan().bold(),
-            " | ".into(),
-            power.yellow().bold(),
-        ]
-    };
+    let mut line1 = vec![
+        " Status: ".into(),
+        status_span,
+        " | Capacity: ".into(),
+        capacity.cyan().bold(),
+        " | Power: ".into(),
+        power.yellow().bold(),
+        " | View: ".into(),
+        app.view_mode_label().green(),
+    ];
 
-    let status_line = Line::from(spans);
-    let paragraph = Paragraph::new(status_line).block(Block::bordered());
+    let line1_width: usize = line1.iter().map(|s| s.content.len()).sum();
+    let available_width = area.width as usize;
+    if available_width > line1_width + 20 {
+        let padding = available_width - line1_width - 15;
+        line1.push(Span::raw(" ".repeat(padding)));
+        line1.push("| ←→ Tab h q ".dark_gray());
+    }
+
+    let mut line2 = vec![];
+
+    if let Some((duration, diff, rate)) = app.get_current_awake_stats() {
+        let dur_str = format_duration(duration as f64);
+        let diff_str = if diff >= 0.0 {
+            format!("+{:.1}%", diff)
+        } else {
+            format!("{:.1}%", diff)
+        };
+        let rate_str = if rate >= 0.0 {
+            format!("+{:.1}%/h", rate)
+        } else {
+            format!("{:.1}%/h", rate)
+        };
+
+        line2.extend(vec![
+            " Awake: ".into(),
+            dur_str.blue().bold(),
+            " (".into(),
+            diff_str.blue(),
+            ", ".into(),
+            rate_str.blue(),
+            ")".into(),
+        ]);
+    }
+
+    if let Some(sleep) = app.last_sleep_period() {
+        if !line2.is_empty() {
+            line2.push(" | ".into());
+        }
+
+        let duration = format_duration(sleep.duration_secs as f64);
+        let diff_str = if sleep.capacity_diff >= 0.0 {
+            format!("+{:.1}%", sleep.capacity_diff)
+        } else {
+            format!("{:.1}%", sleep.capacity_diff)
+        };
+
+        let hours = sleep.duration_secs as f64 / 3600.0;
+        let rate = if hours > 0.0 {
+            sleep.capacity_diff / hours
+        } else {
+            0.0
+        };
+        let rate_str = if rate >= 0.0 {
+            format!("+{:.1}%/h", rate)
+        } else {
+            format!("{:.1}%/h", rate)
+        };
+
+        line2.extend(vec![
+            " Last Sleep: ".into(),
+            duration.magenta(),
+            " (".into(),
+            diff_str.magenta().bold(),
+            ", ".into(),
+            rate_str.magenta(),
+            ")".into(),
+        ]);
+    }
+
+    if line2.is_empty() {
+        line2.push(" No stats available yet.".dark_gray());
+    }
+
+    let text = vec![Line::from(line1), Line::from(line2)];
+    let paragraph = Paragraph::new(text).block(Block::bordered());
 
     frame.render_widget(paragraph, area);
 }
