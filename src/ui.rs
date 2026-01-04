@@ -327,7 +327,7 @@ fn draw_about_popup(frame: &mut Frame) {
             "M".cyan().bold(),
             "onitor".cyan(),
         ]),
-        Line::from("v1.0.0"),
+        Line::from(format!("v{}", env!("CARGO_PKG_VERSION"))),
         Line::from("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dark_gray()),
         Line::from(""),
         Line::from(vec!["  Author  ".dark_gray()]),
